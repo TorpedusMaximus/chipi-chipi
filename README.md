@@ -3,7 +3,7 @@ Small fun project.
 
 # Install 
 ```bash
-pip install [link]
+pip install https://github.com/TorpedusMaximus/chipi-chipi
 ```
 
 # Run
