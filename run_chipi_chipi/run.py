@@ -126,7 +126,7 @@ def play(frames: list[str]) -> None:
         timer.sleep()
 
 
-def chipi_chipi_boykisser() -> None:
+def chipi_chipi() -> None:
     customize_frames()
 
     if os.name == "nt":
@@ -151,4 +151,4 @@ def chipi_chipi_boykisser() -> None:
 
 
 if __name__ == "__main__":
-    chipi_chipi_boykisser()
+    chipi_chipi()
