@@ -11,7 +11,6 @@ from rich.progress import Progress
 from to_ascii import to_ascii  # type: ignore
 from vid_info import vid_info  # type: ignore
 
-
 RED = "\u001b[31m"
 GREEN = "\u001b[32m"
 CYAN = "\u001b[36m"
@@ -146,7 +145,7 @@ def chipi_chipi() -> None:
             play(frames)
     except KeyboardInterrupt:
         cursor.show()
-        print(CLEAR_TERMINAL + RESET_CURSOR)
+        print(CLEAR_TERMINAL + RESET_CURSOR + RESET_PRINT)
         print("UwU :3")
 
 
