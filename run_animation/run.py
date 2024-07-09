@@ -13,6 +13,11 @@ from rich.progress import Progress
 from to_ascii import to_ascii  # type: ignore
 from vid_info import vid_info  # type: ignore
 
+try:
+    from run_animation.sources import DATA_DESCRIPTION
+except:
+    from sources import DATA_DESCRIPTION
+
 RED = "\u001b[31m"
 GREEN = "\u001b[32m"
 CYAN = "\u001b[36m"
@@ -21,39 +26,15 @@ RESET_PRINT = "\u001b[m"
 RESET_CURSOR = "\u001b[H"
 CLEAR_TERMINAL = "\u001b[2J"
 
-SCALE = 33
-DIR = Path(__file__).parent.parent.absolute() / "data"
+ANIMATIONS_DESCRIPTIONS = DATA_DESCRIPTION.copy()
 
 
-class DataDescription(TypedDict):
-    video: Path
-    audio: Path
-    frames: Path
-    resolution: tuple[int, int]
-    resolution_multiplier: float
-    total_frames: int
-
-
-SOURCE_DATA_DESCRIPTION: dict[str, DataDescription] = {
-    "chipi-chipi": DataDescription(
-        video=DIR / "chipi-chipi" / "chipichipi.mp4",
-        audio=DIR / "chipi-chipi" / "audio.mp3",
-        frames=DIR / "chipi-chipi" / "frames",
-        resolution=(1920, 1080),
-        resolution_multiplier=1920 / 1080,
-        total_frames=740,
-    ),
-}
-
-
-def customize_frames(source: str = "chipi-chipi") -> None:
-    global SCALE, SOURCE_DATA_DESCRIPTION
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("-s", "--scale", type=int, default=33)
-    args = arg_parser.parse_args()
-    if args.scale != SCALE:
-        SCALE = int(args.scale)
-        SOURCE_DATA_DESCRIPTION[source]["frames"] = SOURCE_DATA_DESCRIPTION[source]["frames"] / str(args.scale)
+def customize_frames(source: str) -> None:
+    global ANIMATIONS_DESCRIPTIONS
+    if ANIMATIONS_DESCRIPTIONS[source]["chosen_scale"] != ANIMATIONS_DESCRIPTIONS[source]["base_scale"]:
+        print(f"Chosen downscale: {ANIMATIONS_DESCRIPTIONS[source]['chosen_scale']}")
+        ANIMATIONS_DESCRIPTIONS[source]["frames"] = ANIMATIONS_DESCRIPTIONS[source]["frames"] / str(
+            ANIMATIONS_DESCRIPTIONS[source]['chosen_scale'])
         return
 
     size = os.get_terminal_size()
@@ -62,109 +43,115 @@ def customize_frames(source: str = "chipi-chipi") -> None:
     height = size.lines
 
     if width < 1:
-        SOURCE_DATA_DESCRIPTION[source]["frames"] = SOURCE_DATA_DESCRIPTION[source]["frames"] / str(SCALE)
+        ANIMATIONS_DESCRIPTIONS[source]["frames"] = ANIMATIONS_DESCRIPTIONS[source]["frames"] / str(
+            ANIMATIONS_DESCRIPTIONS[source]["base_scale"])
+        ANIMATIONS_DESCRIPTIONS[source]['chosen_scale'] = ANIMATIONS_DESCRIPTIONS[source]['base_scale']
         return
 
     scale_width: int = math.ceil(
-        SOURCE_DATA_DESCRIPTION[source]["resolution_multiplier"] * SOURCE_DATA_DESCRIPTION[source]["resolution"][
+        ANIMATIONS_DESCRIPTIONS[source]["resolution_multiplier"] * ANIMATIONS_DESCRIPTIONS[source]["resolution"][
             0] / width)
-    scale_height: int = math.ceil(SOURCE_DATA_DESCRIPTION[source]["resolution"][1] / height)
+    scale_height: int = math.ceil(ANIMATIONS_DESCRIPTIONS[source]["resolution"][1] / height)
     total_downscale: int = max(scale_height, scale_width)
 
-    if total_downscale > SCALE:
+    if total_downscale > ANIMATIONS_DESCRIPTIONS[source]["base_scale"]:
         print(
             "Terminal size doesn't allow default configuration, both sizes should be higher tha needed:"
         )
         print(
-            f"Width: actual - {width}, needed - {int(SOURCE_DATA_DESCRIPTION[source]['resolution_multiplier'] * SOURCE_DATA_DESCRIPTION[source]['resolution'][0] / 33)}"
+            f"Width: actual - {width}, needed - {int(ANIMATIONS_DESCRIPTIONS[source]['resolution_multiplier'] * ANIMATIONS_DESCRIPTIONS[source]['resolution'][0] / 33)}"
         )
-        print(f"Height: actual - {height}, needed - {int(SOURCE_DATA_DESCRIPTION[source]['resolution'][1] / 33)}")
+        print(f"Height: actual - {height}, needed - {int(ANIMATIONS_DESCRIPTIONS[source]['resolution'][1] / 33)}")
 
-        SCALE = total_downscale
-        SOURCE_DATA_DESCRIPTION[source]["frames"] = SOURCE_DATA_DESCRIPTION[source]["frames"] / str(total_downscale)
+        ANIMATIONS_DESCRIPTIONS[source]["frames"] = ANIMATIONS_DESCRIPTIONS[source]["frames"] / str(total_downscale)
+        ANIMATIONS_DESCRIPTIONS[source]['chosen_scale'] = total_downscale
 
         print(f"Your total downscale is {total_downscale}")
     else:
-        SOURCE_DATA_DESCRIPTION[source]["frames"] = SOURCE_DATA_DESCRIPTION[source]["frames"] / str(SCALE)
+        ANIMATIONS_DESCRIPTIONS[source]["frames"] = ANIMATIONS_DESCRIPTIONS[source]["frames"] / str(
+            ANIMATIONS_DESCRIPTIONS[source]['base_scale'])
+
+    return
 
 
-def get_timer(source: str = "chipi-chipi") -> FPSTimer:
-    info: vid_info = vid_info(str(SOURCE_DATA_DESCRIPTION[source]["video"]))
+def get_timer(source: str) -> FPSTimer:
+    info: vid_info = vid_info(str(ANIMATIONS_DESCRIPTIONS[source]["video"]))
     framerate: int = info.get_framerate()
     timer = FPSTimer(framerate)
     return timer
 
 
-def save_audio(source: str = "chipi-chipi") -> None:
-    SOURCE_DATA_DESCRIPTION[source]["audio"].parent.mkdir(parents=True, exist_ok=True)
-    audio = AudioSegment.from_file(SOURCE_DATA_DESCRIPTION[source]["video"], "mp4")
-    audio.export(SOURCE_DATA_DESCRIPTION[source]["audio"], format="mp3")
+def save_audio(source: str) -> None:
+    ANIMATIONS_DESCRIPTIONS[source]["audio"].parent.mkdir(parents=True, exist_ok=True)
+    audio = AudioSegment.from_file(ANIMATIONS_DESCRIPTIONS[source]["video"], "mp4")
+    audio.export(ANIMATIONS_DESCRIPTIONS[source]["audio"], format="mp3")
 
 
-def save_frames(source: str = "chipi-chipi") -> None:
+def save_frames(source: str) -> None:
     with Progress() as progress:
         generating = progress.add_task(
-            "[red]Generating custom scale frames: ", total=SOURCE_DATA_DESCRIPTION[source]["total_frames"]
+            "[red]Generating custom scale frames: ", total=ANIMATIONS_DESCRIPTIONS[source]["total_frames"]
         )
 
-        SOURCE_DATA_DESCRIPTION[source]["video"].parent.mkdir(parents=True, exist_ok=True)
-        frame_info: vid_info = vid_info(str(SOURCE_DATA_DESCRIPTION[source]["video"]))
+        ANIMATIONS_DESCRIPTIONS[source]["video"].parent.mkdir(parents=True, exist_ok=True)
+        frame_info: vid_info = vid_info(str(ANIMATIONS_DESCRIPTIONS[source]["video"]))
 
         rendered_result: list[str] = []
 
-        for frame_number in range(SOURCE_DATA_DESCRIPTION[source]["total_frames"]):
+        for frame_number in range(ANIMATIONS_DESCRIPTIONS[source]["total_frames"]):
             image = frame_info.get_frame(frame_number)
             frame: to_ascii = to_ascii(
-                image, SCALE, width_multiplication=SOURCE_DATA_DESCRIPTION[source]["resolution_multiplier"]
+                image, ANIMATIONS_DESCRIPTIONS[source]["chosen_scale"],
+                width_multiplication=ANIMATIONS_DESCRIPTIONS[source]["resolution_multiplier"]
             )
 
             frame_colored: str = frame.asciify_colored()
             rendered_result.append(frame_colored)
             progress.update(generating, advance=1)
 
-        SOURCE_DATA_DESCRIPTION[source]["frames"].mkdir(parents=True, exist_ok=True)
+        ANIMATIONS_DESCRIPTIONS[source]["frames"].mkdir(parents=True, exist_ok=True)
         for index, frame_colored in enumerate(rendered_result):
-            with open(SOURCE_DATA_DESCRIPTION[source]["frames"] / f"{index}.txt", "w") as f:
+            with open(ANIMATIONS_DESCRIPTIONS[source]["frames"] / f"{index}.txt", "w") as f:
                 f.write(frame_colored)
 
 
-def load_frames(source: str = "chipi-chipi") -> list[str]:
+def load_frames(source: str) -> list[str]:
     frames: list[str] = []
-    for index in range(SOURCE_DATA_DESCRIPTION[source]["total_frames"]):
-        with open(SOURCE_DATA_DESCRIPTION[source]["frames"] / f"{index}.txt", "r") as f:
+    for index in range(ANIMATIONS_DESCRIPTIONS[source]["total_frames"]):
+        with open(ANIMATIONS_DESCRIPTIONS[source]["frames"] / f"{index}.txt", "r") as f:
             frame = f.read()
         frames.append(frame)
     return frames
 
 
-def play(frames: list[str], source: str = "chipi-chipi") -> None:
-    timer: FPSTimer = get_timer()
+def play(frames: list[str], source: str) -> None:
+    timer: FPSTimer = get_timer(source)
     print(CLEAR_TERMINAL)
 
-    playsound(SOURCE_DATA_DESCRIPTION[source]["audio"], block=False)
+    playsound(ANIMATIONS_DESCRIPTIONS[source]["audio"], block=False)
     for frame in frames:
         print(RESET_CURSOR + frame + RESET_PRINT)
         timer.sleep()
 
 
 def run_animation(source: str) -> None:
-    customize_frames()
+    customize_frames(source)
 
     if os.name == "nt":
         os.system("cls")
 
-    if not SOURCE_DATA_DESCRIPTION[source]["audio"].exists():
-        save_audio()
+    if not ANIMATIONS_DESCRIPTIONS[source]["audio"].exists():
+        save_audio(source)
 
-    if not SOURCE_DATA_DESCRIPTION[source]["frames"].exists():
-        save_frames()
+    if not ANIMATIONS_DESCRIPTIONS[source]["frames"].exists():
+        save_frames(source)
 
     try:
-        frames: list[str] = load_frames()
+        frames: list[str] = load_frames(source)
         cursor.hide()
 
         while True:
-            play(frames)
+            play(frames, source)
     except KeyboardInterrupt:
         cursor.show()
         print(CLEAR_TERMINAL + RESET_CURSOR + RESET_PRINT)
@@ -172,17 +159,33 @@ def run_animation(source: str) -> None:
 
 
 def chipi_chipi() -> None:
+    args = sys.argv
+    if len(args) > 1:
+        ANIMATIONS_DESCRIPTIONS["chipi-chipi"]["chosen_scale"] = int(args[1])
     run_animation("chipi-chipi")
 
 
 if __name__ == "__main__":
+
+    translator = {
+        "chipi": "chipi-chipi"
+    }
+
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("-a", "--animation", type=str, default="chipi-chipi")
+    arg_parser.add_argument("-a", "--animation", type=str, help='Animation', default="chipi")
+    arg_parser.add_argument("-s", "--scale", help='Downscale value - don\'t use if not familiar with code', type=int,
+                            default=-1)
     args = arg_parser.parse_args()
+    animation_name = translator.get(args.animation)
 
-    match args.animation:
-        case "chipi-chipi":
-            chipi_chipi()
-        case _:
-            exit("WTF!?")
+    if animation_name is None:
+        print(f"You chose wrong animation >:3")
+        exit()
 
+
+    if args.scale != -1:
+        ANIMATIONS_DESCRIPTIONS[animation_name]["chosen_scale"] = args.scale
+    else:
+        ANIMATIONS_DESCRIPTIONS[animation_name]["chosen_scale"] = ANIMATIONS_DESCRIPTIONS[args.animation]["base_scale"]
+
+    run_animation(animation_name)
