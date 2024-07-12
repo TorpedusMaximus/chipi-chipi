@@ -98,7 +98,7 @@ def save_frames(source: str) -> None:
 
         rendered_result: list[str] = []
 
-        for frame_number in range(ANIMATIONS_DESCRIPTIONS[source]["total_frames"]):
+        for frame_number in range(int(frame_info.get_framecount())):
             image = frame_info.get_frame(frame_number)
             frame: to_ascii = to_ascii(
                 image, ANIMATIONS_DESCRIPTIONS[source]["chosen_scale"],
@@ -172,20 +172,25 @@ if __name__ == "__main__":
     }
 
     arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("-p", "--prepare", help='Prepare package for build', action='store_true')
     arg_parser.add_argument("-a", "--animation", type=str, help='Animation', default="chipi")
     arg_parser.add_argument("-s", "--scale", help='Downscale value - don\'t use if not familiar with code', type=int,
                             default=-1)
     args = arg_parser.parse_args()
+
+    if args.prepare:
+        prepare_package()
+        exit()
+
     animation_name = translator.get(args.animation)
 
     if animation_name is None:
         print(f"You chose wrong animation >:3")
         exit()
 
-
     if args.scale != -1:
         ANIMATIONS_DESCRIPTIONS[animation_name]["chosen_scale"] = args.scale
     else:
-        ANIMATIONS_DESCRIPTIONS[animation_name]["chosen_scale"] = ANIMATIONS_DESCRIPTIONS[args.animation]["base_scale"]
+        ANIMATIONS_DESCRIPTIONS[animation_name]["chosen_scale"] = ANIMATIONS_DESCRIPTIONS[animation_name]["base_scale"]
 
     run_animation(animation_name)
