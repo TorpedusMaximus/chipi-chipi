@@ -2,5 +2,10 @@ venv
 dist
 *egg*
 .idea
+__pycache__
+build
+
 *.sh
 version
+*.mp3
+frames

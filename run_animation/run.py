@@ -1,6 +1,7 @@
 import argparse
 import math
 import os
+import shutil
 import sys
 from pathlib import Path
 from typing import TypedDict
@@ -12,6 +13,7 @@ from pydub import AudioSegment  # type: ignore
 from rich.progress import Progress
 from to_ascii import to_ascii  # type: ignore
 from vid_info import vid_info  # type: ignore
+
 
 try:
     from run_animation.sources import DATA_DESCRIPTION
@@ -89,31 +91,42 @@ def save_audio(source: str) -> None:
 
 def save_frames(source: str) -> None:
     with Progress() as progress:
-        generating = progress.add_task(
-            "[red]Generating custom scale frames: ", total=ANIMATIONS_DESCRIPTIONS[source]["total_frames"]
-        )
 
         ANIMATIONS_DESCRIPTIONS[source]["video"].parent.mkdir(parents=True, exist_ok=True)
         frame_info: vid_info = vid_info(str(ANIMATIONS_DESCRIPTIONS[source]["video"]))
 
-        rendered_result: list[str] = []
+        ANIMATIONS_DESCRIPTIONS[source]["total_frames"] = int(frame_info.get_framecount())
 
-        for frame_number in range(int(frame_info.get_framecount())):
-            image = frame_info.get_frame(frame_number)
-            frame: to_ascii = to_ascii(
-                image, ANIMATIONS_DESCRIPTIONS[source]["chosen_scale"],
-                width_multiplication=ANIMATIONS_DESCRIPTIONS[source]["resolution_multiplier"]
-            )
-
-            frame_colored: str = frame.asciify_colored()
-            rendered_result.append(frame_colored)
-            progress.update(generating, advance=1)
-
+        generating = progress.add_task(
+            "[red]Generating custom scale frames: ", total=int(frame_info.get_framecount())
+        )
         ANIMATIONS_DESCRIPTIONS[source]["frames"].mkdir(parents=True, exist_ok=True)
-        for index, frame_colored in enumerate(rendered_result):
-            with open(ANIMATIONS_DESCRIPTIONS[source]["frames"] / f"{index}.txt", "w") as f:
-                f.write(frame_colored)
+        try:
+            for frame_number in range(int(frame_info.get_framecount())):
+                image = frame_info.get_frame(frame_number)
+                frame: to_ascii = to_ascii(
+                    image, ANIMATIONS_DESCRIPTIONS[source]["chosen_scale"],
+                    width_multiplication=ANIMATIONS_DESCRIPTIONS[source]["resolution_multiplier"]
+                )
 
+                frame_colored: str = frame.asciify_colored()
+                progress.update(generating, advance=1)
+                with open(ANIMATIONS_DESCRIPTIONS[source]["frames"] / f"{frame_number}.txt", "w") as f:
+                    f.write(frame_colored)
+        except KeyError as e:
+            shutil.rmtree(ANIMATIONS_DESCRIPTIONS[source]["frames"])
+
+def prepare_package():
+    for source in ANIMATIONS_DESCRIPTIONS.keys():
+        if not ANIMATIONS_DESCRIPTIONS[source]["audio"].exists():
+            save_audio(source)
+        ANIMATIONS_DESCRIPTIONS[source]["frames"] = ANIMATIONS_DESCRIPTIONS[source]["frames"] / str(
+            ANIMATIONS_DESCRIPTIONS[source]["base_scale"])
+        if not ANIMATIONS_DESCRIPTIONS[source]["frames"].exists():
+            ANIMATIONS_DESCRIPTIONS[source]["frames"].mkdir(parents=True, exist_ok=True)
+            save_frames(source)
+
+    print("READY!!!!")
 
 def load_frames(source: str) -> list[str]:
     frames: list[str] = []
@@ -168,7 +181,12 @@ def chipi_chipi() -> None:
 if __name__ == "__main__":
 
     translator = {
-        "chipi": "chipi-chipi"
+        "chipi": "chipi-chipi",
+        "shikonoko": "shikonoko",
+        "02": "02",
+        "catcher": "shigure-catcher",
+        "loli": "shigure-loli",
+        "kiss": "kiss-me",
     }
 
     arg_parser = argparse.ArgumentParser()
