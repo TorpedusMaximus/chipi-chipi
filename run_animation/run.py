@@ -7,9 +7,9 @@ from cursor import cursor
 from fpstimer import FPSTimer
 
 try:
-    from run_animation.sources import Animation, DIR
+    from run_animation.animation import Animation, DIR
 except ImportError:
-    from sources import Animation, DIR
+    from animation import Animation, DIR
 
 RED = "\u001b[31m"
 GREEN = "\u001b[32m"
