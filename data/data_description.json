@@ -1,0 +1,34 @@
+[
+  {
+    "name": "chipi_chipi",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "scale": 33
+  },
+  {
+    "name": "shikonoko",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "scale": 19
+  },
+  {
+    "name": "kiss_me",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "scale": 19
+  },
+  {
+    "name": "02",
+    "resolution": [
+      1920,
+      1080
+    ],
+    "scale": 15
+  }
+]
