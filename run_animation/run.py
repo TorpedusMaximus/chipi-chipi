@@ -8,7 +8,7 @@ from fpstimer import FPSTimer
 
 try:
     from run_animation.sources import Animation, DIR
-except:
+except ImportError:
     from sources import Animation, DIR
 
 RED = "\u001b[31m"
@@ -62,8 +62,7 @@ class Runner:
 
 
 def prepare_data(to_prepare: dict[str, Animation]) -> None:
-    source: Animation
-    for source in to_prepare.items():
+    for source in to_prepare.values():
         if not source.audio_path.exists():
             source.save_audio()
         source.frames_path = source.frames_path / str(source.scale)
@@ -92,8 +91,7 @@ def chipi_chipi() -> None:
     runner.run_animation()
 
 
-if __name__ == "__main__":
-
+def main():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-p", "--prepare", help='Prepare package for build', action='store_true')
     arg_parser.add_argument("-a", "--animation", type=str, help='Animation', default="chipi_chipi")
@@ -107,15 +105,19 @@ if __name__ == "__main__":
         exit()
 
     animation_name = args.animation
-
     if animation_name not in animation_descriptions.keys():
         print(f"You chose wrong animation >:3")
         exit()
 
+    animation = animation_descriptions[animation_name]
     if args.scale != -1:
-        animation_descriptions[animation_name].chosen_scale = args.scale
+        animation.chosen_scale = args.scale
     else:
-        animation_descriptions[animation_name].chosen_scale = animation_descriptions[animation_name].scale
+        animation.chosen_scale = animation.scale
 
-    runner = Runner(animation_descriptions[animation_name])
+    runner = Runner(animation)
     runner.run_animation()
+
+
+if __name__ == "__main__":
+    main()
